@@ -2,8 +2,8 @@ name: Daily Market Report
 
 on:
   schedule:
-    # 毎日 UTC 0:00 = 日本時間 9:00 AM
-    - cron: '0 0 * * *'
+    # 平日 UTC 0:00 = 日本時間 9:00 AM（月〜金）
+    - cron: '0 0 * * 1-5'
   workflow_dispatch: # 手動実行も可能
 
 permissions:
@@ -27,6 +27,10 @@ jobs:
       - name: Generate market report
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: claude-sonnet-4-20250514
+          ANTHROPIC_FALLBACK_MODEL: claude-opus-4-20250514
+          ANTHROPIC_MAX_OUTPUT_TOKENS: '3500'
+          FORCE_GENERATE: '0'
         run: python generate_report.py
 
       - name: Commit and push

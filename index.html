@@ -5,25 +5,75 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NY市況 & マーケットサマリー</title>
   <style>
+    :root {
+      --bg: #e8e4df;
+      --panel: #1a2744;
+      --text: #ffffff;
+      --muted: rgba(255, 255, 255, 0.85);
+      --radius: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: "Noto Sans JP", "Hiragino Sans", sans-serif;
-      background: #e8e4df;
+      background: var(--bg);
       display: flex;
       justify-content: center;
-      align-items: center;
+      align-items: flex-start;
       min-height: 100vh;
       margin: 0;
+      padding: 20px 12px;
     }
+
     .msg {
-      background: #1a2744;
-      color: #fff;
-      padding: 40px;
-      border-radius: 12px;
-      text-align: center;
-      max-width: 500px;
+      width: min(100%, 560px);
+      background: var(--panel);
+      color: var(--text);
+      padding: 26px 22px;
+      border-radius: var(--radius);
+      text-align: left;
+      box-shadow: 0 12px 30px rgba(8, 16, 36, 0.18);
     }
-    .msg h1 { font-size: 24px; margin-bottom: 16px; }
-    .msg p { font-size: 16px; opacity: 0.8; }
+
+    .msg h1 {
+      font-size: 24px;
+      line-height: 1.35;
+      margin: 0 0 12px;
+    }
+
+    .msg p {
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    @media (max-width: 700px) {
+      .msg h1 {
+        font-size: 21px;
+      }
+
+      .msg p {
+        font-size: 14px;
+      }
+    }
+
+    @media (max-width: 420px) {
+      body {
+        padding: 14px 12px;
+      }
+
+      .msg {
+        padding: 20px 16px;
+      }
+
+      .msg h1 {
+        font-size: 19px;
+      }
+    }
   </style>
 </head>
 <body>
