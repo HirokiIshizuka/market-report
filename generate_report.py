@@ -9,9 +9,23 @@ import datetime
 import os
 import re
 
-DEFAULT_PRIMARY_MODEL = "claude-3-5-haiku-latest"
-DEFAULT_FALLBACK_MODEL = "claude-sonnet-4-20250514"
+DEFAULT_PRIMARY_MODEL = "claude-sonnet-4-20250514"
+DEFAULT_FALLBACK_MODEL = "claude-opus-4-20250514"
 DEFAULT_MAX_OUTPUT_TOKENS = 3500
+REQUIRED_SECTION_PATTERNS = {
+    "上がりそう": [
+        r"上がりそう",
+        r"上昇.{0,12}銘柄",
+        r"買い.{0,12}候補",
+        r"強気.{0,12}銘柄",
+    ],
+    "落ちそう": [
+        r"落ちそう",
+        r"下落.{0,12}銘柄",
+        r"売り.{0,12}候補",
+        r"弱気.{0,12}銘柄",
+    ],
+}
 
 
 def get_japan_now():
@@ -59,6 +73,45 @@ def get_max_output_tokens():
         return max(1200, int(raw))
     except ValueError:
         return DEFAULT_MAX_OUTPUT_TOKENS
+
+
+def get_missing_required_sections(html_content):
+    """必須セクションの不足判定（表現ゆらぎを許容）"""
+    missing = []
+    for section_name, patterns in REQUIRED_SECTION_PATTERNS.items():
+        if not any(re.search(pattern, html_content) for pattern in patterns):
+            missing.append(section_name)
+    return missing
+
+
+def inject_fallback_sections(html_content, missing_sections):
+    """不足セクションを最低限のHTMLで補完して処理継続できるようにする"""
+    blocks = []
+    if "上がりそう" in missing_sections:
+        blocks.append(
+            """
+<section style="margin:20px 0;padding:14px;border-radius:12px;border:1px solid #86efac;background:#f0fdf4;">
+  <h2 style="margin:0 0 8px;font-size:20px;color:#166534;">上がりそうな銘柄</h2>
+  <p style="margin:0;color:#14532d;line-height:1.7;">本日は十分な根拠を満たす候補を抽出できませんでした。次回更新で再判定します。</p>
+</section>
+""".strip()
+        )
+
+    if "落ちそう" in missing_sections:
+        blocks.append(
+            """
+<section style="margin:20px 0;padding:14px;border-radius:12px;border:1px solid #fca5a5;background:#fef2f2;">
+  <h2 style="margin:0 0 8px;font-size:20px;color:#991b1b;">落ちそうな銘柄</h2>
+  <p style="margin:0;color:#7f1d1d;line-height:1.7;">本日は十分な根拠を満たす候補を抽出できませんでした。次回更新で再判定します。</p>
+</section>
+""".strip()
+        )
+
+    fallback_html = "\n".join(blocks)
+    body_close_idx = html_content.lower().rfind("</body>")
+    if body_close_idx >= 0:
+        return html_content[:body_close_idx] + fallback_html + "\n" + html_content[body_close_idx:]
+    return html_content + "\n" + fallback_html
 
 
 def request_html_with_fallback(client, prompt):
@@ -118,7 +171,7 @@ def generate_report():
 6. ドル円 為替レート
 
 ## Step 2: Web検索でマーケットニュースを3本取得
-株式・商品・為替に関連する今日の主要ニュースを5本だけ検索してまとめてください。
+株式・商品・為替に関連する今日の主要ニュースを3本だけ検索してまとめてください。
 
 ## Step 3: Web検索で「上がりそう/落ちそう」銘柄候補を抽出
 米国株または日本株から、以下を抽出してください（必須）:
@@ -206,14 +259,14 @@ HTMLコードのみを出力してください。```html等のマークダウン
     if doctype_idx > 0:
         html_content = html_content[doctype_idx:]
 
-    # 必須セクションの最低限バリデーション
-    required_sections = ["上がりそう", "落ちそう"]
-    missing_sections = [s for s in required_sections if s not in html_content]
+    # 必須セクションの最低限バリデーション（不足時は自動補完して継続）
+    missing_sections = get_missing_required_sections(html_content)
     if missing_sections:
         missing_str = ", ".join(missing_sections)
-        raise ValueError(
-            f"Generated HTML is missing required stock sections: {missing_str}"
+        print(
+            f"Warning: Generated HTML is missing required stock sections: {missing_str}"
         )
+        html_content = inject_fallback_sections(html_content, missing_sections)
 
     html_content = add_report_date_marker(html_content, iso_date)
 
